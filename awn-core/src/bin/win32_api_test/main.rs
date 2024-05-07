@@ -1,8 +1,11 @@
+use std::mem;
+use std::{thread, time};
 use std::os::windows::ffi::OsStrExt;
 use windows::core::PCWSTR;
 use windows::Win32::{
     Foundation::GetLastError,
     UI::WindowsAndMessaging::*,
+    UI::Input::KeyboardAndMouse::*,
 };
 use std::ffi::OsStr;
 use std::iter::once;
@@ -20,12 +23,32 @@ fn main() {
         let hwnd = FindWindowW(None, title);
         match GetLastError().ok() {
             Ok(_) => {
-                println!("hello {:?}", hwnd.0);
+                println!("window handler: {:?}", hwnd);
             }
             Err(e) => {
-                println!("{e}")
+                panic!("get window error: {e}")
             }
         }
+
+        let _ = SetForegroundWindow(hwnd);
+        
+        let hex_key_code = 0x11; // press w once
+        let pinputs = &mut [INPUT::default(); 2][..];
+        pinputs[0].r#type = INPUT_KEYBOARD;
+        pinputs[0].Anonymous.ki.wScan = hex_key_code;
+        pinputs[0].Anonymous.ki.dwFlags = KEYEVENTF_SCANCODE;
+        SendInput(&pinputs[0..1], mem::size_of::<INPUT>() as _);
+
+        thread::sleep(time::Duration::from_millis(250));
+
+        pinputs[1].r#type = INPUT_KEYBOARD;
+        pinputs[1].Anonymous.ki.wScan = hex_key_code;
+        pinputs[1].Anonymous.ki.dwFlags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
+        SendInput(&pinputs[1..], mem::size_of::<INPUT>() as _);
+        
+        let curr_hwnd = GetForegroundWindow();
+        println!("curr_hwnd: {:?}, target_hwnd: {:?}", curr_hwnd, hwnd);
+        println!("finish window control...")
     }
     let _: Option<i32> = std::io::stdin()
     .bytes() 
