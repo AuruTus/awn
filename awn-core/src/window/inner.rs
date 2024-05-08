@@ -1,4 +1,6 @@
 use anyhow::{Result, bail};
+use std::thread::sleep;
+use core::time::Duration;
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::{HWND, GetLastError};
 use std::{ffi::OsStr, iter::once, os::windows::ffi::OsStrExt};
@@ -8,11 +10,12 @@ use crate::input::keyboard::KeySC;
 use crate::window::Window;
 
 /// basic Window Handler
+#[derive(Debug)]
 pub struct WindowInner {
     /// Windows application window handle
-    hwnd: HWND,
+    pub hwnd: HWND,
     /// Window title discription
-    title: PCWSTR
+    pub title: PCWSTR
 }
 
 impl WindowInner {
@@ -37,7 +40,15 @@ impl WindowInner {
 }
 
 impl Window for WindowInner {
-    fn press(key: KeySC) -> Result<u32> {
-        todo!()
+    /// Press the key for `hold` time. Will block the current thread!
+    fn press(&self, key: KeySC, hold: Duration) -> Result<u32> {
+        let down = key.keydown()?;
+        sleep(hold);
+        let up = key.keyup()?;
+        Ok(down + up)
+    }
+
+    fn handle(&self) -> HWND {
+        self.hwnd
     }
 }
