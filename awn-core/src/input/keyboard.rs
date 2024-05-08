@@ -1,8 +1,10 @@
-use anyhow::{Result, bail};
 use windows::Win32::{
+    UI::Input::KeyboardAndMouse::INPUT,
     UI::Input::KeyboardAndMouse::MapVirtualKeyW,
     UI::Input::KeyboardAndMouse::MAPVK_VK_TO_VSC,
 };
+
+use crate::error::Result;
 
 
 /// Keyboard scan code mappings.
@@ -10,8 +12,9 @@ use windows::Win32::{
 /// !NOTE: arrow key scancodes (`up`, `down`, `left`, `right`) can be different on the hardware.
 ///     To use them, look up their scancodes with [`MapVirtualKeyA`][windows::Win32::UI::Input::KeyboardAndMouse::MapVirtualKeyA]
 ///     or [`MapVirtualKeyW`][windows::Win32::UI::Input::KeyboardAndMouse::MapVirtualKeyW].
-///     ref: https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-mapvirtualkeya?redirectedfrom=MSDN
+///     See [Microsoft Win32 Doc][https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-mapvirtualkeya?redirectedfrom=MSDN] for more details.
 #[allow(non_camel_case_types)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeySC {
     KC_ESC = 0x01,
     KC_F1 = 0x3b,
@@ -148,14 +151,18 @@ impl KeySC {
         }
     }
 
-    pub fn is_arrow(&self) -> bool {
+    pub fn is_arrow(self) -> bool {
         matches!(self, Self::KC_UP | Self::KC_DOWN | Self::KC_RIGHT | Self::KC_LEFT)
     }
 
+    #[cfg(feature="foreground")]
     pub fn keydown(self) -> Result<u32> {
+        let mut input = INPUT::default();
+        // let 
         todo!()
     }
 
+    #[cfg(feature="foreground")]
     pub fn keyup(self) -> Result<u32> {
         todo!()
     }
