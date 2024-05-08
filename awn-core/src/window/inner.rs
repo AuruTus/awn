@@ -45,10 +45,16 @@ impl WindowInner {
 
 impl Window for WindowInner {
     /// Press the key for `hold` time. Will block the current thread!
-    fn press(&self, key: KeySC, hold: Duration) -> Result<u32> {
-        let down = key.keydown()?;
+    fn press(&self, keys: &[KeySC], hold: Duration) -> Result<u32> {
+        let mut down = 0;
+        for k in keys.iter() {
+            down += k.keydown()?;
+        }
         sleep(hold);
-        let up = key.keyup()?;
+        let mut up = 0;
+        for k in keys.iter() {
+            up += k.keyup()?;
+        }
         Ok(down + up)
     }
 
