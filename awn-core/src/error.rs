@@ -7,6 +7,11 @@ pub type Result<T, E = AwnError> = std::result::Result<T, E>;
 #[derive(Snafu, Debug)]
 #[snafu(visibility(pub))]
 pub enum AwnError {
+    #[snafu(display("failed to send key {key}"))]
+    KeyDownSendFailed {
+        key: String,
+        backtrace: Backtrace,
+    },
     #[snafu(display("Application not found: pcwstr_title {title_converted}, raw_title {title_raw}"))]
     ApplicationNotFound {
         title_converted: String,
@@ -21,7 +26,6 @@ pub enum AwnError {
     },
     #[snafu(display("Unknown error"))]
     Unknown {
-        #[snafu(backtrace)]
         backtrace: Backtrace,
     },
 }

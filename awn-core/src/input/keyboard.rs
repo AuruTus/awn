@@ -1,11 +1,48 @@
+use snafu::ensure;
 use windows::Win32::{
     UI::Input::KeyboardAndMouse::INPUT,
+    UI::Input::KeyboardAndMouse::INPUT_0,
+    UI::Input::KeyboardAndMouse::INPUT_KEYBOARD,
     UI::Input::KeyboardAndMouse::MapVirtualKeyW,
     UI::Input::KeyboardAndMouse::MAPVK_VK_TO_VSC,
+    UI::Input::KeyboardAndMouse::GetKeyState,
+    UI::Input::KeyboardAndMouse::VIRTUAL_KEY,
+    UI::Input::KeyboardAndMouse::KEYBDINPUT,
+    UI::Input::KeyboardAndMouse::KEYBD_EVENT_FLAGS,
+    UI::Input::KeyboardAndMouse::SendInput,
+    UI::Input::KeyboardAndMouse::{KEYEVENTF_SCANCODE, KEYEVENTF_KEYUP, KEYEVENTF_EXTENDEDKEY},
 };
 
 use crate::error::Result;
+use crate::error as werror;
 
+const CBSIZE: usize = std::mem::size_of::<INPUT>();
+
+#[allow(non_snake_case)]
+fn new_kbd_input(wVk: u16, wScan: u16, dwFlags: KEYBD_EVENT_FLAGS, time: u32, dwExtraInfo: usize) -> KEYBDINPUT {
+    KEYBDINPUT {
+        wVk: VIRTUAL_KEY(wVk),
+        wScan,
+        dwFlags,
+        time,
+        dwExtraInfo,
+    }
+}
+
+fn new_input(ki: KEYBDINPUT) -> INPUT {
+    INPUT {
+        r#type: INPUT_KEYBOARD,
+        Anonymous: INPUT_0 {
+            ki,
+        },
+    }
+}
+
+fn get_num_lock_state() -> i16 {
+    unsafe {
+        GetKeyState(0x90)
+    }
+}
 
 /// Keyboard scan code mappings.
 /// 
@@ -155,11 +192,51 @@ impl KeySC {
         matches!(self, Self::KC_UP | Self::KC_DOWN | Self::KC_RIGHT | Self::KC_LEFT)
     }
 
+    fn send_prefix() -> Result<u32> {
+        let input = new_input(new_kbd_input(
+            0,
+            Into::<u32>::into(Self::KC_PREFIX) as u16, 
+            KEYEVENTF_SCANCODE,
+            0,
+            0
+        ));
+        match unsafe {
+            SendInput(&[input][..], CBSIZE as i32)
+        } {
+            0 => werror::KeyDownSendFailedSnafu{key: stringify!("{:?}", Self::KC_PREFIX).to_owned()}.fail(),
+            event  => Ok(event)
+        }
+    }
+
     #[cfg(feature="foreground")]
     pub fn keydown(self) -> Result<u32> {
-        let mut input = INPUT::default();
-        // let 
-        todo!()
+        let mut dw_flags = KEYEVENTF_SCANCODE;
+        let mut expected_events = 1;
+        let mut inserted_events = 0;
+        
+        if self.is_arrow() {
+            dw_flags |= KEYEVENTF_EXTENDEDKEY;
+            // if numlock is on, an additional scancode needs to be sent for arrow key
+            // see refs below:
+            // https://stackoverflow.com/questions/14026496/sendinput-sends-num8-when-i-want-to-send-vk-up-how-come
+            // https://handmade.network/wiki/2823-keyboard_inputs_-_scancodes,_raw_input,_text_input,_key_names
+            if get_num_lock_state() != 0 {
+                expected_events = 2;
+                inserted_events += Self::send_prefix()?;
+            }
+        }
+
+        let input = new_input(
+            new_kbd_input(
+                0,
+                Into::<u32>::into(self) as u16,
+                dw_flags,
+                0,
+                0
+        ));
+        inserted_events += unsafe { SendInput(&[input][..], CBSIZE as i32) };
+        ensure!(expected_events == inserted_events, werror::KeyDownSendFailedSnafu{key: stringify!("{:?}", self).to_owned()});
+        Ok(inserted_events)
     }
 
     #[cfg(feature="foreground")]
