@@ -1,25 +1,31 @@
 use snafu::ensure;
 use windows::Win32::{
+    UI::Input::KeyboardAndMouse::GetKeyState,
+    UI::Input::KeyboardAndMouse::MapVirtualKeyW,
+    UI::Input::KeyboardAndMouse::SendInput,
     UI::Input::KeyboardAndMouse::INPUT,
     UI::Input::KeyboardAndMouse::INPUT_0,
     UI::Input::KeyboardAndMouse::INPUT_KEYBOARD,
-    UI::Input::KeyboardAndMouse::MapVirtualKeyW,
-    UI::Input::KeyboardAndMouse::MAPVK_VK_TO_VSC,
-    UI::Input::KeyboardAndMouse::GetKeyState,
-    UI::Input::KeyboardAndMouse::VIRTUAL_KEY,
     UI::Input::KeyboardAndMouse::KEYBDINPUT,
     UI::Input::KeyboardAndMouse::KEYBD_EVENT_FLAGS,
-    UI::Input::KeyboardAndMouse::SendInput,
-    UI::Input::KeyboardAndMouse::{KEYEVENTF_SCANCODE, KEYEVENTF_KEYUP, KEYEVENTF_EXTENDEDKEY},
+    UI::Input::KeyboardAndMouse::MAPVK_VK_TO_VSC,
+    UI::Input::KeyboardAndMouse::VIRTUAL_KEY,
+    UI::Input::KeyboardAndMouse::{KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE},
 };
 
-use crate::error::Result;
 use crate::error as werror;
+use crate::error::Result;
 
 const CBSIZE: usize = std::mem::size_of::<INPUT>();
 
 #[allow(non_snake_case)]
-fn new_kbd_input(wVk: u16, wScan: u16, dwFlags: KEYBD_EVENT_FLAGS, time: u32, dwExtraInfo: usize) -> KEYBDINPUT {
+fn new_kbd_input(
+    wVk: u16,
+    wScan: u16,
+    dwFlags: KEYBD_EVENT_FLAGS,
+    time: u32,
+    dwExtraInfo: usize,
+) -> KEYBDINPUT {
     KEYBDINPUT {
         wVk: VIRTUAL_KEY(wVk),
         wScan,
@@ -32,20 +38,16 @@ fn new_kbd_input(wVk: u16, wScan: u16, dwFlags: KEYBD_EVENT_FLAGS, time: u32, dw
 fn new_input(ki: KEYBDINPUT) -> INPUT {
     INPUT {
         r#type: INPUT_KEYBOARD,
-        Anonymous: INPUT_0 {
-            ki,
-        },
+        Anonymous: INPUT_0 { ki },
     }
 }
 
 fn get_num_lock_state() -> i16 {
-    unsafe {
-        GetKeyState(0x90)
-    }
+    unsafe { GetKeyState(0x90) }
 }
 
 /// Keyboard scan code mappings.
-/// 
+///
 /// !NOTE: arrow key scancodes (`up`, `down`, `left`, `right`) can be different on the hardware.
 ///     To use them, look up their scancodes with [`MapVirtualKeyA`][windows::Win32::UI::Input::KeyboardAndMouse::MapVirtualKeyA]
 ///     or [`MapVirtualKeyW`][windows::Win32::UI::Input::KeyboardAndMouse::MapVirtualKeyW].
@@ -70,7 +72,7 @@ pub enum KeySC {
     KC_SCROLLLOCK = 0x46,
     KC_PAUSE = 0xc5,
     /// Key `
-    KC_BACKTICK  = 0x29,
+    KC_BACKTICK = 0x29,
     KC_1 = 0x02,
     KC_2 = 0x03,
     KC_3 = 0x04,
@@ -151,14 +153,14 @@ pub enum KeySC {
     KC_N = 0x31,
     KC_M = 0x32,
     /// Key ,
-    KC_COMMA = 0x33, 
+    KC_COMMA = 0x33,
     /// Key .
     KC_FULLSTOP = 0x34,
     /// Key /
-    KC_SLASH = 0x35, 
+    KC_SLASH = 0x35,
     KC_SHIFTRIGHT = 0x36,
     /// Key ctrl left
-    KC_CTRL = 0x1d, 
+    KC_CTRL = 0x1d,
     /// Key win left
     KC_WIN = 0x4db,
     /// Key alt left
@@ -173,7 +175,7 @@ pub enum KeySC {
     KC_PREFIX = 0xe0,
 
     /// Diffrent on hardwares, should not directly use them
-    /// Every 8 bits are the Virtual Key Codes, use them to 
+    /// Every 8 bits are the Virtual Key Codes, use them to
     /// look up the win32 mapping.
     KC_UP = 0x2626,
     KC_DOWN = 0x2525,
@@ -183,13 +185,14 @@ pub enum KeySC {
 
 impl KeySC {
     fn arrow_vsc(self) -> u32 {
-        unsafe {
-            MapVirtualKeyW(self as u32 >> 8, MAPVK_VK_TO_VSC)
-        }
+        unsafe { MapVirtualKeyW(self as u32 >> 8, MAPVK_VK_TO_VSC) }
     }
 
     pub fn is_arrow(self) -> bool {
-        matches!(self, Self::KC_UP | Self::KC_DOWN | Self::KC_RIGHT | Self::KC_LEFT)
+        matches!(
+            self,
+            Self::KC_UP | Self::KC_DOWN | Self::KC_RIGHT | Self::KC_LEFT
+        )
     }
 
     fn send_prefix(dw_flags: KEYBD_EVENT_FLAGS) -> Result<u32> {
@@ -200,20 +203,21 @@ impl KeySC {
             0,
             0,
         ));
-        match unsafe {
-            SendInput(&[input][..], CBSIZE as i32)
-        } {
-            0 => werror::KeyDownSendFailedSnafu{key: stringify!("{:?}", Self::KC_PREFIX).to_owned()}.fail(),
-            event  => Ok(event)
+        match unsafe { SendInput(&[input][..], CBSIZE as i32) } {
+            0 => werror::KeyDownSendFailedSnafu {
+                key: stringify!("{:?}", Self::KC_PREFIX).to_owned(),
+            }
+            .fail(),
+            event => Ok(event),
         }
     }
 
-    #[cfg(feature="foreground")]
+    #[cfg(feature = "foreground")]
     pub fn keydown(self) -> Result<u32> {
         let mut dw_flags = KEYEVENTF_SCANCODE;
         let mut expected_events = 1;
         let mut inserted_events = 0;
-        
+
         if self.is_arrow() {
             dw_flags |= KEYEVENTF_EXTENDEDKEY;
             // if numlock is on, an additional scancode needs to be sent for arrow key
@@ -226,20 +230,24 @@ impl KeySC {
             }
         }
 
-        let input = new_input(
-            new_kbd_input(
-                0,
-                Into::<u32>::into(self) as u16,
-                dw_flags,
-                0,
-                0
+        let input = new_input(new_kbd_input(
+            0,
+            Into::<u32>::into(self) as u16,
+            dw_flags,
+            0,
+            0,
         ));
         inserted_events += unsafe { SendInput(&[input][..], CBSIZE as i32) };
-        ensure!(expected_events == inserted_events, werror::KeyDownSendFailedSnafu{key: stringify!("{:?}", self).to_owned()});
+        ensure!(
+            expected_events == inserted_events,
+            werror::KeyDownSendFailedSnafu {
+                key: stringify!("{:?}", self).to_owned()
+            }
+        );
         Ok(inserted_events)
     }
 
-    #[cfg(feature="foreground")]
+    #[cfg(feature = "foreground")]
     pub fn keyup(self) -> Result<u32> {
         let mut dw_flags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
         let mut expected_events = 1;
@@ -249,19 +257,19 @@ impl KeySC {
             dw_flags |= KEYEVENTF_EXTENDEDKEY;
         }
 
-        let input = new_input(
-            new_kbd_input(
-                0,
-                Into::<u32>::into(self) as u16,
-                dw_flags,
-                0,
-                0
+        let input = new_input(new_kbd_input(
+            0,
+            Into::<u32>::into(self) as u16,
+            dw_flags,
+            0,
+            0,
         ));
-        inserted_events += match unsafe {
-            SendInput(&[input][..], CBSIZE as i32)
-        } {
-            0 => werror::KeyUpSendFailedSnafu{key: stringify!("{:?}", self).to_owned()}.fail(),
-            event  => Ok(event)
+        inserted_events += match unsafe { SendInput(&[input][..], CBSIZE as i32) } {
+            0 => werror::KeyUpSendFailedSnafu {
+                key: stringify!("{:?}", self).to_owned(),
+            }
+            .fail(),
+            event => Ok(event),
         }?;
 
         if self.is_arrow() && get_num_lock_state() != 0 {
@@ -270,7 +278,12 @@ impl KeySC {
             inserted_events += Self::send_prefix(KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP)?;
         }
 
-        ensure!(expected_events == inserted_events, werror::KeyUpSendFailedSnafu{key: stringify!("{:?}", self).to_owned()});
+        ensure!(
+            expected_events == inserted_events,
+            werror::KeyUpSendFailedSnafu {
+                key: stringify!("{:?}", self).to_owned()
+            }
+        );
         Ok(inserted_events)
     }
 }

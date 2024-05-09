@@ -4,9 +4,7 @@ use windows::Win32::Foundation::HWND;
 use crate::error::Result;
 use crate::input::keyboard::KeySC;
 
-
 pub mod inner;
-
 
 /// Trait for handling Window
 pub trait Window {

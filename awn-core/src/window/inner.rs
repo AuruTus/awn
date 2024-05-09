@@ -1,15 +1,15 @@
+use core::time::Duration;
 use snafu::ResultExt;
 use std::thread::sleep;
-use core::time::Duration;
-use windows::core::PCWSTR;
-use windows::Win32::Foundation::{HWND, GetLastError};
 use std::{ffi::OsStr, iter::once, os::windows::ffi::OsStrExt};
+use windows::core::PCWSTR;
+use windows::Win32::Foundation::{GetLastError, HWND};
 use windows::Win32::UI::WindowsAndMessaging::FindWindowW;
 
-use crate::input::keyboard::KeySC;
-use crate::window::Window;
 use crate::error as awn_error;
 use crate::error::Result;
+use crate::input::keyboard::KeySC;
+use crate::window::Window;
 
 /// basic Window Handler
 #[derive(Debug)]
@@ -17,7 +17,7 @@ pub struct WindowInner {
     /// Windows application window handle
     pub hwnd: HWND,
     /// Window title discription
-    pub title: PCWSTR
+    pub title: PCWSTR,
 }
 
 impl WindowInner {
@@ -32,14 +32,15 @@ impl WindowInner {
             })?;
             if hwnd.0 == 0 {
                 let title_converted = title.to_string().unwrap();
-                return awn_error::ApplicationNotFoundSnafu{title_converted, title_raw}.fail();
+                return awn_error::ApplicationNotFoundSnafu {
+                    title_converted,
+                    title_raw,
+                }
+                .fail();
             }
             hwnd
         };
-        Ok(Self {
-            hwnd,
-            title
-        })
+        Ok(Self { hwnd, title })
     }
 }
 
