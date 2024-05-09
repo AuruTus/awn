@@ -8,16 +8,15 @@ snafu = {version = "0.8.2"}
 
 [dependencies.windows]
 version = "0.56.0"
+optional = true
 features = [
-    "Data_Xml_Dom",
     "Win32_Foundation",
-    "Win32_Security",
-    "Win32_System_Threading",
     "Win32_UI_WindowsAndMessaging",
     "Win32_UI_Input_KeyboardAndMouse",
 ]
 
 [features]
-default = ["foreground"]
+default = ["foreground", "dep-windows"] # default for Windows applications
 
 foreground = [] # use SendInput to control keyboard inputs
+dep-windows = ["dep:windows"]
