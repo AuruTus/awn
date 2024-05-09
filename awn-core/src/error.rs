@@ -7,8 +7,13 @@ pub type Result<T, E = AwnError> = std::result::Result<T, E>;
 #[derive(Snafu, Debug)]
 #[snafu(visibility(pub))]
 pub enum AwnError {
-    #[snafu(display("failed to send key {key}"))]
+    #[snafu(display("failed to send keydown {key}"))]
     KeyDownSendFailed {
+        key: String,
+        backtrace: Backtrace,
+    },
+    #[snafu(display("failed to send keyup {key}"))]
+    KeyUpSendFailed {
         key: String,
         backtrace: Backtrace,
     },

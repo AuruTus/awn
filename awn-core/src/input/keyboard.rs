@@ -192,13 +192,13 @@ impl KeySC {
         matches!(self, Self::KC_UP | Self::KC_DOWN | Self::KC_RIGHT | Self::KC_LEFT)
     }
 
-    fn send_prefix() -> Result<u32> {
+    fn send_prefix(dw_flags: KEYBD_EVENT_FLAGS) -> Result<u32> {
         let input = new_input(new_kbd_input(
             0,
-            Into::<u32>::into(Self::KC_PREFIX) as u16, 
-            KEYEVENTF_SCANCODE,
+            Into::<u32>::into(Self::KC_PREFIX) as u16,
+            dw_flags,
             0,
-            0
+            0,
         ));
         match unsafe {
             SendInput(&[input][..], CBSIZE as i32)
@@ -222,7 +222,7 @@ impl KeySC {
             // https://handmade.network/wiki/2823-keyboard_inputs_-_scancodes,_raw_input,_text_input,_key_names
             if get_num_lock_state() != 0 {
                 expected_events = 2;
-                inserted_events += Self::send_prefix()?;
+                inserted_events += Self::send_prefix(KEYEVENTF_SCANCODE)?;
             }
         }
 
@@ -241,7 +241,37 @@ impl KeySC {
 
     #[cfg(feature="foreground")]
     pub fn keyup(self) -> Result<u32> {
-        todo!()
+        let mut dw_flags = KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP;
+        let mut expected_events = 1;
+        let mut inserted_events = 0;
+
+        if self.is_arrow() {
+            dw_flags |= KEYEVENTF_EXTENDEDKEY;
+        }
+
+        let input = new_input(
+            new_kbd_input(
+                0,
+                Into::<u32>::into(self) as u16,
+                dw_flags,
+                0,
+                0
+        ));
+        inserted_events += match unsafe {
+            SendInput(&[input][..], CBSIZE as i32)
+        } {
+            0 => werror::KeyUpSendFailedSnafu{key: stringify!("{:?}", self).to_owned()}.fail(),
+            event  => Ok(event)
+        }?;
+
+        if self.is_arrow() && get_num_lock_state() != 0 {
+            // if numlock is on, an additional scancode needs to be sent for arrow key
+            expected_events = 2;
+            inserted_events += Self::send_prefix(KEYEVENTF_SCANCODE | KEYEVENTF_KEYUP)?;
+        }
+
+        ensure!(expected_events == inserted_events, werror::KeyUpSendFailedSnafu{key: stringify!("{:?}", self).to_owned()});
+        Ok(inserted_events)
     }
 }
 
