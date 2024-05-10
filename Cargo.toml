@@ -3,3 +3,5 @@
 members = [
     "awn-core",
 ]
+
+resolver = "2"
