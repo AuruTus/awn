@@ -22,8 +22,9 @@ fn run() -> Result<()> {
 
 fn main() {
     if let Err(e) = run() {
+        eprintln!("{}", e);
         if let Some(bt) = ErrorCompat::backtrace(&e) {
-            println!("{}", bt);
+            eprintln!("{}", bt);
         }
     }
 }
