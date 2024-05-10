@@ -13,7 +13,7 @@ use windows::Win32::{
     UI::Input::KeyboardAndMouse::{KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_SCANCODE},
 };
 
-use crate::error as werror;
+use crate::error as awn_error;
 use crate::error::Result;
 
 const CBSIZE: usize = std::mem::size_of::<INPUT>();
@@ -204,7 +204,7 @@ impl KeySC {
             0,
         ));
         match unsafe { SendInput(&[input][..], CBSIZE as i32) } {
-            0 => werror::KeyDownSendFailedSnafu {
+            0 => awn_error::KeyDownSendFailedSnafu {
                 key: stringify!("{:?}", Self::KC_PREFIX).to_owned(),
             }
             .fail(),
@@ -240,7 +240,7 @@ impl KeySC {
         inserted_events += unsafe { SendInput(&[input][..], CBSIZE as i32) };
         ensure!(
             expected_events == inserted_events,
-            werror::KeyDownSendFailedSnafu {
+            awn_error::KeyDownSendFailedSnafu {
                 key: stringify!("{:?}", self).to_owned()
             }
         );
@@ -265,7 +265,7 @@ impl KeySC {
             0,
         ));
         inserted_events += match unsafe { SendInput(&[input][..], CBSIZE as i32) } {
-            0 => werror::KeyUpSendFailedSnafu {
+            0 => awn_error::KeyUpSendFailedSnafu {
                 key: stringify!("{:?}", self).to_owned(),
             }
             .fail(),
@@ -280,7 +280,7 @@ impl KeySC {
 
         ensure!(
             expected_events == inserted_events,
-            werror::KeyUpSendFailedSnafu {
+            awn_error::KeyUpSendFailedSnafu {
                 key: stringify!("{:?}", self).to_owned()
             }
         );
