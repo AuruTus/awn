@@ -5,10 +5,7 @@ use awn_core::window::Window;
 use rand::prelude::*;
 use snafu::ensure;
 use std::{thread, time};
-use windows::Win32::{
-    Foundation::{BOOL, HWND},
-    UI::WindowsAndMessaging::{GetForegroundWindow, SetForegroundWindow},
-};
+use windows::Win32::{Foundation::HWND, UI::WindowsAndMessaging::GetForegroundWindow};
 
 pub(crate) struct Controll<W>
 where
@@ -26,13 +23,7 @@ where
     }
 
     pub fn make_foreground(&self) -> Result<()> {
-        unsafe {
-            let hwnd = self.handle();
-            match SetForegroundWindow(hwnd) {
-                BOOL(0) => awn_error::WindowNotForegroundSnafu { hwnd }.fail(),
-                _ => Ok(()),
-            }
-        }
+        self.foreground()
     }
 }
 

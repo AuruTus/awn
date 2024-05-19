@@ -16,7 +16,7 @@ fn run() -> Result<()> {
     window.make_foreground()?;
 
     loop {
-        window.press(&[KeySC::KC_W][..], time::Duration::from_micros(250))?;
+        window.press(&[KeySC::KC_SPACE][..], time::Duration::from_micros(250))?;
     }
 }
 
